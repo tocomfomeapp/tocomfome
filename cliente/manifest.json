@@ -1,0 +1,24 @@
+{
+    "name": "Sistema de Pedidos",
+    "short_name": "Pedidos",
+    "description": "Sistema de pedidos para lanchonete",
+    "start_url": "./cliente/telefone-github.html?lojaid=001",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#667eea",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzY2N2VhZSI+PHBhdGggZD0iTTEyIDJjMS4xIDAgMiAuOSAyIDJzLS45IDItMiAyLTItLjktMi0yIC45LTIgMi0yem03IDBoLTZ2NmgtMnYtNmgtMnY2SDV2LTdoNnY3em03IDBoLTZ2NmgtMnYtNmgtMnY2SDV2LTdoNnY3eiIvPjwvc3ZnPg==",
+            "sizes": "192x192",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzY2N2VhZSI+PHBhdGggZD0iTTEyIDJjMS4xIDAgMiAuOSAyIDJzLS45IDItMiAyLTItLjktMi0yIC45LTIgMi0yem03IDBoLTZ2NmgtMnYtNmgtMnY2SDV2LTdoNnY3em03IDBoLTZ2NmgtMnYtNmgtMnY2SDV2LTdoNnY3eiIvPjwvc3ZnPg==",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ],
+    "categories": ["food", "shopping"],
+    "lang": "pt-BR"
+}
