@@ -168,7 +168,7 @@
             const telefoneLimpo = limparTelefone(telefone);
 
             try {
-                const doc = await db.collection(`clientes_${currentLojaId}`).doc(telefoneLimpo).get();
+                const doc = await db.collection('clientes').doc(telefoneLimpo).get();
 
                 if (doc.exists && doc.data().loja_id === currentLojaId) {
                     return { existe: true, cliente: doc.data() };

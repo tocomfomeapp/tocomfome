@@ -208,7 +208,7 @@
             try {
                 const telefone = limparTelefone(cliente.telefone);
 
-                const snapshot = await db.collection(`pedidos_${currentLojaId}`)
+                const snapshot = await db.collection('pedidos')
                     .where('loja_id', '==', currentLojaId)
                     .where('cliente_telefone', '==', telefone)
                     .orderBy('criado_em', 'desc')
@@ -236,7 +236,7 @@
 
             const telefone = limparTelefone(cliente.telefone);
 
-            unsubscribe = db.collection(`pedidos_${currentLojaId}`)
+            unsubscribe = db.collection('pedidos')
                 .where('loja_id', '==', currentLojaId)
                 .where('cliente_telefone', '==', telefone)
                 .orderBy('criado_em', 'desc')

@@ -132,7 +132,7 @@
                 synced_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            await db.collection(`clientes_${currentLojaId}`).doc(cliente.telefone).set(clienteData);
+            await db.collection('clientes').doc(cliente.telefone).set(clienteData);
         }
 
         function salvarClienteLocal(telefone, dados) {

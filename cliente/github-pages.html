@@ -157,7 +157,7 @@
             }
 
             try {
-                const doc = await db.collection(`pedidos_${currentLojaId}`).doc(codigo).get();
+                const doc = await db.collection('pedidos').doc(codigo).get();
 
                 if (doc.exists) {
                     const pedido = doc.data();
@@ -188,7 +188,7 @@
             }
 
             try {
-                const doc = await db.collection(`clientes_${currentLojaId}`).doc(telefoneLimpo).get();
+                const doc = await db.collection('clientes').doc(telefoneLimpo).get();
 
                 if (doc.exists) {
                     const cliente = doc.data();

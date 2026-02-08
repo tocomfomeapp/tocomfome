@@ -116,7 +116,7 @@
             document.getElementById('btnRastrear').textContent = 'Buscando...';
 
             try {
-                const doc = await db.collection(`pedidos_${currentLojaId}`).doc(codigo).get();
+                const doc = await db.collection('pedidos').doc(codigo).get();
                 if (!doc.exists) { showToast('Pedido não encontrado'); }
                 else {
                     const p = doc.data();
