@@ -16,7 +16,7 @@
                 <h1>Monte seu Pedido</h1>
                 <p id="boasVindas">Olá!</p>
             </div>
-            <a href="meus-pedidos-github.html" class="btn-mini">
+            <a href="meus-pedidos-github.html?lojaid=DOCURRENTLOJA" class="btn-mini" id="btnMeusPedidos">
                 📦 Meus Pedidos
             </a>
         </div>
@@ -47,11 +47,11 @@
         <div id="tipoPedidoContainer" style="display: none; margin-bottom: var(--spacing-lg);">
             <p class="form-label">Como você gostaria de receber?</p>
             <div class="tipo-pedido-opcoes">
-                <button class="tipo-pedido-btn" id="btnEntrega" onclick="selecionarTipo('entrega')">
+                <button class="tipo-pedido-btn card" id="btnEntrega" onclick="selecionarTipo('entrega')">
                     <span class="tipo-pedido-icon">🚗</span>
                     <span class="tipo-pedido-text">Delivery</span>
                 </button>
-                <button class="tipo-pedido-btn" id="btnRetirada" onclick="selecionarTipo('retirada')">
+                <button class="tipo-pedido-btn card" id="btnRetirada" onclick="selecionarTipo('retirada')">
                     <span class="tipo-pedido-icon">🏃</span>
                     <span class="tipo-pedido-text">Retirar</span>
                 </button>
@@ -163,6 +163,12 @@
 
         async function init() {
             currentLojaId = getLojaId();
+
+            const btnMeusPedidos = document.getElementById('btnMeusPedidos');
+            if (btnMeusPedidos) {
+                btnMeusPedidos.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+            }
+
             if (!currentLojaId) {
                 showToast('Adicione ?lojaid=ID na URL', 'error');
                 return;
@@ -172,7 +178,7 @@
 
             cliente = getCliente();
             if (!cliente) {
-                window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+                location.replace(`telefone-github.html?lojaid=${currentLojaId}`);
                 return;
             }
 
@@ -224,6 +230,7 @@
                 document.getElementById('produtosGrid').style.display = 'grid';
 
                 renderizarProdutos();
+                atualizarQuantidades();
             } catch (error) {
                 console.error('Erro ao carregar produtos:', error);
                 showToast('Erro ao carregar produtos', 'error');
@@ -266,9 +273,27 @@
                         <div class="produto-nome">${p.nome}</div>
                         <div class="produto-preco">${formatarMoeda(p.preco)}</div>
                     </div>
-                    <button class="produto-add-btn">+</button>
+                    <div class="qtd-controls" onclick="event.stopPropagation()">
+                        <button class="qtd-btn qtd-menos" onclick="removerDoCarrinho('${p.id}')">-</button>
+                        <span id="qtd-${p.id}" class="qtd-numero">0</span>
+                        <button class="qtd-btn qtd-mais" onclick="adicionarAoCarrinho('${p.id}', '${p.nome}', ${p.preco}, '${p.categoria || ''}')">+</button>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        function removerDoCarrinho(produtoId) {
+            const existente = carrinho.find(item => item.produto_id === produtoId);
+            if (existente) {
+                existente.quantidade--;
+                existente.subtotal = existente.quantidade * existente.preco_unitario;
+                if (existente.quantidade <= 0) {
+                    carrinho = carrinho.filter(item => item.produto_id !== produtoId);
+                }
+                salvarCarrinho();
+                atualizarResumo();
+                atualizarQuantidades();
+            }
         }
 
         function adicionarAoCarrinho(produtoId, nome, preco, categoria) {
@@ -290,7 +315,20 @@
 
             salvarCarrinho();
             atualizarResumo();
-            showToast(`${nome} adicionado!`, 'success');
+            atualizarQuantidades();
+            if (!existente) {
+                showToast(`${nome} adicionado!`, 'success');
+            }
+        }
+
+        function atualizarQuantidades() {
+            produtos.forEach(p => {
+                const el = document.getElementById(`qtd-${p.id}`);
+                const item = carrinho.find(c => c.produto_id === p.id);
+                if (el) {
+                    el.textContent = item ? item.quantidade : '0';
+                }
+            });
         }
 
         function selecionarTipo(tipo) {
@@ -314,7 +352,7 @@
             const btnVerResumo = document.getElementById('btnVerResumo');
             btnVerResumo.onclick = () => {
                 if (tipoPedido && carrinho.length > 0) {
-                    window.location.href = `revisao-github.html?lojaid=${currentLojaId}`;
+                    window.location.replace(`revisao-github.html?lojaid=${currentLojaId}`);
                 } else if (carrinho.length === 0) {
                     showToast('Adicione produtos ao pedido!', 'error');
                 } else if (!tipoPedido) {

@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Meus Pedidos - Sistema de Pedidos</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
@@ -31,10 +29,10 @@
         </div>
 
         <div style="display: grid; gap: var(--spacing-md); margin-bottom: 120px;">
-            <button class="btn btn-primary" onclick="fazerNovoPedido()" style="padding: var(--spacing-lg);">
+            <a href="pedido-github.html?lojaid=DOCURRENTLOJA" class="btn btn-primary" id="btnNovoPedido" style="padding: var(--spacing-lg); text-decoration: none;">
                 <span style="font-size: 1.5rem;">🍔</span>
                 <span>Fazer Novo Pedido</span>
-            </button>
+            </a>
         </div>
 
         <div class="card" style="margin-bottom: var(--spacing-lg);">
@@ -50,9 +48,9 @@
         <div id="semPedidos" class="empty-state" style="display: none;">
             <div class="empty-icon">📭</div>
             <p>Você ainda não fez nenhum pedido</p>
-            <button class="btn btn-primary" onclick="fazerNovoPedido()" style="margin-top: var(--spacing-md);">
+            <a href="pedido-github.html?lojaid=DOCURRENTLOJA" class="btn btn-primary" id="btnPrimeiroPedido" style="margin-top: var(--spacing-md); text-decoration: none;">
                 Fazer Primeiro Pedido
-            </button>
+            </a>
         </div>
 
         <div id="pedidosContainer" style="display: none;">
@@ -141,6 +139,10 @@
             }
         }
 
+        function fecharNotificacao() {
+            document.getElementById('notificationBanner').style.display = 'none';
+        }
+
         function getStatusLabel(status) {
             const labels = {
                 'novo': 'Novo',
@@ -178,28 +180,41 @@
         }
 
         async function init() {
-            currentLojaId = getLojaId();
-            document.getElementById('lojaInfo').textContent = currentLojaId ? `🏪 Loja: ${currentLojaId}` : '⚠️ Loja não configurada';
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const lojaid = urlParams.get('lojaid');
 
-            if (!currentLojaId) {
-                window.location.href = 'telefone-github.html';
-                return;
+                if (lojaid) {
+                    document.querySelectorAll('a[href*="DOCURRENTLOJA"]').forEach(link => {
+                        link.href = link.href.replace('DOCURRENTLOJA', lojaid);
+                    });
+                }
+
+                currentLojaId = getLojaId();
+                document.getElementById('lojaInfo').textContent = currentLojaId ? `🏪 Loja: ${currentLojaId}` : '⚠️ Loja não configurada';
+
+                if (!currentLojaId) {
+                    location.replace('telefone-github.html');
+                    return;
+                }
+
+                await initFirebase();
+
+                cliente = getCliente();
+
+                if (!cliente) {
+                    location.replace(`telefone-github.html?lojaid=${currentLojaId}`);
+                    return;
+                }
+
+                document.getElementById('clienteNome').textContent = cliente.nome || 'Cliente';
+                document.getElementById('clienteTelefone').textContent = formatarTelefone(cliente.telefone);
+
+                await carregarPedidos();
+                subscribeToPedidos();
+            } catch (error) {
+                console.error('[MEUS-PEDIDOS] Erro no init:', error);
             }
-
-            await initFirebase();
-
-            cliente = getCliente();
-
-            if (!cliente) {
-                window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
-                return;
-            }
-
-            document.getElementById('clienteNome').textContent = cliente.nome || 'Cliente';
-            document.getElementById('clienteTelefone').textContent = formatarTelefone(cliente.telefone);
-
-            await carregarPedidos();
-            subscribeToPedidos();
         }
 
         async function carregarPedidos() {
@@ -320,27 +335,21 @@
             `;
         }
 
-        function verPedido(pedidoId) {
-            window.location.href = `rastreio-github.html?lojaid=${currentLojaId}&id=${pedidoId}`;
-        }
+            function verPedido(pedidoId) {
+                window.location.href = `rastreio-github.html?lojaid=${currentLojaId}&id=${pedidoId}`;
+            }
 
-        function fazerNovoPedido() {
-            const url = `telefone-github.html?lojaid=${currentLojaId}&acao=fazer_pedido`;
-            console.log('[MEUS-PEDIDOS] Indo para:', url);
-            window.location.href = url;
-        }
+            function sair() {
+                localStorage.removeItem(CLIENTE_KEY);
+                localStorage.removeItem('sistema_pedidos_logado');
+                window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+            }
 
-        function sair() {
-            localStorage.removeItem(CLIENTE_KEY);
-            localStorage.removeItem('sistema_pedidos_logado');
-            window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
-        }
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribe) unsubscribe();
+        });
 
-        if (unsubscribe) {
-            unsubscribe();
-        }
-
-        init();
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>

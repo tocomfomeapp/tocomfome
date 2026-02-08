@@ -408,25 +408,80 @@ body {
   letter-spacing: 0.05em;
 }
 
-.quantity-wrapper {
+.qtd-controls {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
+  gap: 6px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 
-.quantity-wrapper.quantity-active {
-  background: var(--success-50);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xs);
+.qtd-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.qtd-menos {
+  background: #dc2626;
+  color: white;
+}
+
+.qtd-menos:hover {
+  background: #ef4444;
+}
+
+.qtd-mais {
+  background: #10b981;
+  color: white;
+}
+
+.qtd-mais:hover {
+  background: #34d399;
+}
+
+.qtd-btn:active {
+  transform: scale(0.9);
+}
+
+.qtd-numero {
+  font-size: 20px;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: center;
+  color: white;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.quantity-wrapper,
+.quantity-display,
+.quantity-btn,
+.quantity-btn-minus,
+.quantity-btn-plus {
+  display: none !important;
+}
+
+.produto-add-btn {
+  display: none !important;
 }
 
 .quantity-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 2px solid var(--border-light);
+  border: none;
   background: var(--bg-tertiary);
   color: var(--text-primary);
   font-size: 1.25rem;
@@ -686,9 +741,12 @@ body {
   background: var(--primary-800);
 }
 
-.produto-add-btn::before {
-  content: '+';
-  margin-right: 4px;
+.produto-add-btn[onclick*="remover"] {
+  background: linear-gradient(135deg, var(--error-500) 0%, var(--error-600) 100%);
+}
+
+.produto-add-btn[onclick*="remover"]:hover {
+  background: linear-gradient(135deg, var(--error-600) 0%, var(--error-700) 100%);
 }
 
 .empty-state {
@@ -854,6 +912,9 @@ body {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-md);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .tipo-pedido-btn {
@@ -862,7 +923,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-xl) var(--spacing-lg);
+  padding: var(--spacing-md);
   background: var(--bg-secondary);
   border: 2px solid var(--border-light);
   border-radius: var(--radius-xl);
@@ -870,22 +931,25 @@ body {
   transition: all var(--transition-normal);
   color: var(--text-primary);
   font-weight: 500;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tipo-pedido-btn:hover {
   border-color: var(--primary-500);
   background: var(--bg-tertiary);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .tipo-pedido-btn:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0);
 }
 
 .tipo-pedido-btn.active {
   border-color: var(--success-500);
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 0 1px var(--success-500);
 }
 
 .tipo-pedido-icon {
@@ -899,8 +963,6 @@ body {
 
 .tipo-pedido-text {
   font-size: 0.95rem;
-  font-weight: 600;
-}
   font-weight: 600;
 }
 
@@ -1006,7 +1068,6 @@ body {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: var(--spacing-md);
-}
 }
 
 @keyframes spin {
@@ -1332,17 +1393,6 @@ body {
   .header-pedido {
     max-width: 480px;
     margin-left: auto;
-    margin-right: auto;
-    border-radius: var(--radius-xl);
-  }
-@media (min-width: 769px) {
-  .header-pedido {
-    max-width: 480px;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: var(--radius-xl);
-  }
-}
     margin-right: auto;
     border-radius: var(--radius-xl);
   }

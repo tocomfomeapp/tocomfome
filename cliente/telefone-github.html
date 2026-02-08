@@ -148,19 +148,33 @@
 
             const cliente = getCliente();
             const estaLogado = localStorage.getItem('sistema_pedidos_logado');
-
-            if (cliente && cliente.telefone && estaLogado && currentLojaId) {
-                window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
-                return;
-            }
-
-            localStorage.removeItem('sistema_pedidos_logado');
-
             const urlParams = new URLSearchParams(window.location.search);
+            const acao = urlParams.get('acao');
             const telefoneParam = urlParams.get('telefone');
+            
+            window.telefoneAcao = acao;
 
             if (telefoneParam) {
                 document.getElementById('telefone').value = formatarTelefone(telefoneParam);
+            }
+
+            if (currentLojaId && cliente && cliente.telefone && estaLogado) {
+                if (acao === 'fazer_pedido') {
+                    window.location.replace(`pedido-github.html?lojaid=${currentLojaId}`);
+                } else {
+                    window.location.replace(`meus-pedidos-github.html?lojaid=${currentLojaId}`);
+                }
+                return;
+            }
+
+            if (!currentLojaId && cliente && cliente.telefone && estaLogado && cliente.loja_id) {
+                window.location.replace(`meus-pedidos-github.html?lojaid=${cliente.loja_id}`);
+                return;
+            }
+
+            if (!currentLojaId) {
+                document.getElementById('lojaInfo').textContent = '⚠️ Loja não identificada';
+                return;
             }
         }
 
@@ -216,9 +230,13 @@
 
                 if (result.existe) {
                     salvarCliente(telefone, result.cliente);
-                    window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+                    if (window.telefoneAcao === 'fazer_pedido') {
+                        window.location.href = `pedido-github.html?lojaid=${currentLojaId}`;
+                    } else {
+                        window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+                    }
                 } else {
-                    window.location.href = `cadastro-github.html?lojaid=${currentLojaId}&telefone=${limparTelefone(telefone)}`;
+                    window.location.href = `cadastro-github.html?lojaid=${currentLojaId}&telefone=${limparTelefone(telefone)}&acao=fazer_pedido`;
                 }
             } catch (error) {
                 showError('Erro ao verificar telefone. Tente novamente.');

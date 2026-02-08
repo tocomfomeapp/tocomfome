@@ -106,6 +106,13 @@
                 return;
             }
             await initFirebase();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const pedidoId = urlParams.get('id');
+            if (pedidoId) {
+                document.getElementById('codigo').value = pedidoId;
+                rastrearPedido();
+            }
         }
 
         async function rastrearPedido() {
