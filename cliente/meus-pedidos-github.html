@@ -30,7 +30,7 @@
             </div>
         </div>
 
-        <div style="display: grid; gap: var(--spacing-md); margin-bottom: var(--spacing-xl);">
+        <div style="display: grid; gap: var(--spacing-md); margin-bottom: 120px;">
             <button class="btn btn-primary" onclick="fazerNovoPedido()" style="padding: var(--spacing-lg);">
                 <span style="font-size: 1.5rem;">🍔</span>
                 <span>Fazer Novo Pedido</span>
@@ -172,7 +172,7 @@
                 db = firebase.firestore();
                 return db;
             } catch (error) {
-                console.error('[MEUS-PEDIDOS-GITHUB] Erro Firebase:', error);
+                console.error('[MEUS-PEDIDOS] Erro Firebase:', error);
                 return null;
             }
         }
@@ -220,7 +220,7 @@
                 renderizarPedidos();
                 document.getElementById('loading').style.display = 'none';
             } catch (error) {
-                console.error('[MEUS-PEDIDOS-GITHUB] Erro ao carregar pedidos:', error);
+                console.error('[MEUS-PEDIDOS] Erro ao carregar pedidos:', error);
                 document.getElementById('loading').style.display = 'none';
                 showToast('Erro ao carregar pedidos', 'error');
             }
@@ -325,11 +325,9 @@
         }
 
         function fazerNovoPedido() {
-            if (!currentLojaId) {
-                showToast('Loja não configurada', 'error');
-                return;
-            }
-            window.location.href = `cadastro-github.html?lojaid=${currentLojaId}`;
+            const url = `telefone-github.html?lojaid=${currentLojaId}&acao=fazer_pedido`;
+            console.log('[MEUS-PEDIDOS] Indo para:', url);
+            window.location.href = url;
         }
 
         function sair() {

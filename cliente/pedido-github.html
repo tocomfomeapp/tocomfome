@@ -180,10 +180,12 @@
 
             carrinho = getCarrinho();
             tipoPedido = getTipoPedido();
+
+            document.getElementById('tipoPedidoContainer').style.display = 'block';
+            document.querySelector('.tipo-pedido-opcoes').style.display = 'flex';
+
             if (tipoPedido) {
-                document.getElementById('tipoPedidoContainer').style.display = 'block';
                 document.getElementById('tipoPedidoContainer').querySelector('p').style.display = 'none';
-                document.querySelector('.tipo-pedido-opcoes').style.display = 'flex';
                 document.getElementById(`btn${tipoPedido.charAt(0).toUpperCase() + tipoPedido.slice(1)}`).classList.add('selected');
             }
 
@@ -309,11 +311,16 @@
             const resumoPedido = document.getElementById('resumoPedido');
             resumoPedido.style.display = carrinho.length > 0 ? 'block' : 'none';
 
-            if (tipoPedido && carrinho.length > 0) {
-                document.getElementById('btnVerResumo').onclick = () => {
-                    window.location.href = `revisao.html?lojaid=${currentLojaId}`;
-                };
-            }
+            const btnVerResumo = document.getElementById('btnVerResumo');
+            btnVerResumo.onclick = () => {
+                if (tipoPedido && carrinho.length > 0) {
+                    window.location.href = `revisao-github.html?lojaid=${currentLojaId}`;
+                } else if (carrinho.length === 0) {
+                    showToast('Adicione produtos ao pedido!', 'error');
+                } else if (!tipoPedido) {
+                    showToast('Selecione Delivery ou Retirada!', 'error');
+                }
+            };
         }
 
         document.getElementById('buscaProduto').addEventListener('input', function(e) {

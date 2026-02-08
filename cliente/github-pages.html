@@ -9,7 +9,6 @@
     <meta name="theme-color" content="#667eea">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 </head>
 <body>
     <div class="container" style="padding-bottom: 100px;">
@@ -162,7 +161,7 @@
                 if (doc.exists) {
                     const pedido = doc.data();
                     localStorage.setItem('rastreio_pedido', JSON.stringify(pedido));
-                    window.location.href = `rastreio.html?lojaid=${currentLojaId}&pedido=${codigo}`;
+                    window.location.href = `rastreio-github.html?lojaid=${currentLojaId}&pedido=${codigo}`;
                 } else {
                     showToast('Pedido não encontrado');
                 }
@@ -218,7 +217,7 @@
                 showToast('Loja não configurada', 'error');
                 return;
             }
-            window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+            window.location.href = `telefone-github.html?lojaid=${currentLojaId}&acao=fazer_pedido`;
         }
 
         document.getElementById('telefoneLogin').addEventListener('input', function(e) {
