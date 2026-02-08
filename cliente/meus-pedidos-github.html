@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meus Pedidos - Sistema de Pedidos</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="notification-banner" id="notificationBanner" style="display: none;">
+        <div class="notification-content">
+            <span class="notification-icon">🔔</span>
+            <span id="notificationText"></span>
+        </div>
+        <button class="notification-close" onclick="fecharNotificacao()">×</button>
+    </div>
+
+    <div class="container" style="padding-bottom: 100px;">
+        <div class="header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-xl); margin-bottom: var(--spacing-lg); padding: var(--spacing-lg);">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <div>
+                    <h1 style="font-size: 1.25rem;">👋 Olá, <span id="clienteNome">Cliente</span></h1>
+                    <p style="font-size: 0.875rem; opacity: 0.9;" id="clienteTelefone"></p>
+                    <p style="font-size: 0.75rem; opacity: 0.7;" id="lojaInfo"></p>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; gap: var(--spacing-md); margin-bottom: var(--spacing-xl);">
+            <button class="btn btn-primary" onclick="fazerNovoPedido()" style="padding: var(--spacing-lg);">
+                <span style="font-size: 1.5rem;">🍔</span>
+                <span>Fazer Novo Pedido</span>
+            </button>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--spacing-lg);">
+            <h3 style="margin-bottom: var(--spacing-md);">📦 Meus Pedidos</h3>
+            <p style="color: var(--text-secondary); font-size: 0.875rem;">Clique em um pedido para acompanhar o status</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando seus pedidos...</p>
+        </div>
+
+        <div id="semPedidos" class="empty-state" style="display: none;">
+            <div class="empty-icon">📭</div>
+            <p>Você ainda não fez nenhum pedido</p>
+            <button class="btn btn-primary" onclick="fazerNovoPedido()" style="margin-top: var(--spacing-md);">
+                Fazer Primeiro Pedido
+            </button>
+        </div>
+
+        <div id="pedidosContainer" style="display: none;">
+            <div id="pedidosPendentes" style="display: none; margin-bottom: var(--spacing-xl);">
+                <h4 style="color: var(--warning-500); margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <span>⏳</span> Pedidos em Andamento
+                </h4>
+                <div id="listaPendentes" style="display: grid; gap: var(--spacing-md);"></div>
+            </div>
+
+            <div id="pedidosFinalizados" style="display: none;">
+                <h4 style="color: var(--text-secondary); margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <span>✅</span> Pedidos Anteriores
+                </h4>
+                <div id="listaFinalizados" style="display: grid; gap: var(--spacing-md);"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-sair">
+        <button class="btn btn-secondary" onclick="sair()" style="width: 100%; max-width: 480px; margin: 0 auto;">
+            🚪 Sair da Conta
+        </button>
+    </div>
+
+    <div class="toast" id="toast" style="display: none;"></div>
+
+    <script>
+        const LOJA_ID_KEY = 'tocomfome_loja_id';
+        const CLIENTE_KEY = 'sistema_pedidos_cliente';
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let db = null;
+        let app = null;
+        let currentLojaId = null;
+        let cliente = null;
+        let pedidos = [];
+        let unsubscribe = null;
+        let statusAnterior = new Map();
+
+        const STATUS_PENDENTES = ['novo', 'confirmado', 'preparando', 'saiu_entrega'];
+
+        function getLojaId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let lojaid = urlParams.get('lojaid');
+            if (!lojaid) {
+                lojaid = localStorage.getItem(LOJA_ID_KEY);
+            } else {
+                localStorage.setItem(LOJA_ID_KEY, lojaid);
+            }
+            return lojaid;
+        }
+
+        function getCliente() {
+            const dados = localStorage.getItem(CLIENTE_KEY);
+            if (dados) {
+                try {
+                    return JSON.parse(dados);
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        function formatarTelefone(telefone) {
+            if (telefone && telefone.length === 11) {
+                return `(${telefone.substring(0, 2)}) ${telefone.substring(2, 7)}-${telefone.substring(7)}`;
+            }
+            return telefone || '';
+        }
+
+        function formatarData(dataString) {
+            if (!dataString) return '';
+            const data = new Date(dataString);
+            return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function showToast(mensagem, tipo = 'success') {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = mensagem;
+                toast.className = `toast ${tipo}`;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'novo': 'Novo',
+                'confirmado': 'Confirmado',
+                'preparando': 'Preparando',
+                'saiu_entrega': 'Saiu para Entrega',
+                'entregue': 'Entregue',
+                'cancelado': 'Cancelado'
+            };
+            return labels[status] || status;
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'novo': 'var(--warning-500)',
+                'confirmado': 'var(--primary-500)',
+                'preparando': 'var(--primary-600)',
+                'saiu_entrega': 'var(--primary-700)',
+                'entregue': 'var(--success-500)',
+                'cancelado': 'var(--error-500)'
+            };
+            return colors[status] || 'var(--text-primary)';
+        }
+
+        async function initFirebase() {
+            if (db) return db;
+            try {
+                app = firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                return db;
+            } catch (error) {
+                console.error('[MEUS-PEDIDOS-GITHUB] Erro Firebase:', error);
+                return null;
+            }
+        }
+
+        async function init() {
+            currentLojaId = getLojaId();
+            document.getElementById('lojaInfo').textContent = currentLojaId ? `🏪 Loja: ${currentLojaId}` : '⚠️ Loja não configurada';
+
+            if (!currentLojaId) {
+                window.location.href = 'telefone-github.html';
+                return;
+            }
+
+            await initFirebase();
+
+            cliente = getCliente();
+
+            if (!cliente) {
+                window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+                return;
+            }
+
+            document.getElementById('clienteNome').textContent = cliente.nome || 'Cliente';
+            document.getElementById('clienteTelefone').textContent = formatarTelefone(cliente.telefone);
+
+            await carregarPedidos();
+            subscribeToPedidos();
+        }
+
+        async function carregarPedidos() {
+            if (!db || !currentLojaId) return;
+
+            try {
+                const telefone = limparTelefone(cliente.telefone);
+
+                const snapshot = await db.collection('pedidos')
+                    .where('lojaid', '==', currentLojaId)
+                    .where('cliente_telefone', '==', telefone)
+                    .orderBy('criado_em', 'desc')
+                    .limit(50)
+                    .get();
+
+                pedidos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                renderizarPedidos();
+                document.getElementById('loading').style.display = 'none';
+            } catch (error) {
+                console.error('[MEUS-PEDIDOS-GITHUB] Erro ao carregar pedidos:', error);
+                document.getElementById('loading').style.display = 'none';
+                showToast('Erro ao carregar pedidos', 'error');
+            }
+        }
+
+        function limparTelefone(telefone) {
+            if (!telefone) return '';
+            return telefone.replace(/\D/g, '');
+        }
+
+        function subscribeToPedidos() {
+            if (!db || !currentLojaId) return;
+
+            const telefone = limparTelefone(cliente.telefone);
+
+            unsubscribe = db.collection('pedidos')
+                .where('lojaid', '==', currentLojaId)
+                .where('cliente_telefone', '==', telefone)
+                .orderBy('criado_em', 'desc')
+                .onSnapshot(snapshot => {
+                    if (snapshot.empty) {
+                        pedidos = [];
+                        renderizarPedidos();
+                        return;
+                    }
+
+                    pedidos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderizarPedidos();
+
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'modified') {
+                            const pedido = change.doc.data();
+                            const statusAntigo = statusAnterior.get(pedido.id);
+
+                            if (statusAntigo && statusAntigo !== pedido.status) {
+                                showToast(`Pedido ${pedido.codigo_rastreio || pedido.id}: ${getStatusLabel(pedido.status)}`, 'success');
+                            }
+
+                            statusAnterior.set(pedido.id, pedido.status);
+                        }
+                    });
+                });
+        }
+
+        function renderizarPedidos() {
+            const container = document.getElementById('pedidosContainer');
+            const semPedidos = document.getElementById('semPedidos');
+            const pendentesDiv = document.getElementById('pedidosPendentes');
+            const finalizadosDiv = document.getElementById('pedidosFinalizados');
+            const listaPendentes = document.getElementById('listaPendentes');
+            const listaFinalizados = document.getElementById('listaFinalizados');
+
+            if (!pedidos || pedidos.length === 0) {
+                container.style.display = 'none';
+                semPedidos.style.display = 'block';
+                return;
+            }
+
+            container.style.display = 'block';
+            semPedidos.style.display = 'none';
+
+            const pendentes = pedidos.filter(p => STATUS_PENDENTES.includes(p.status));
+            const finalizados = pedidos.filter(p => !STATUS_PENDENTES.includes(p.status));
+
+            if (pendentes.length > 0) {
+                pendentesDiv.style.display = 'block';
+                listaPendentes.innerHTML = pendentes.map(p => criarCardPedido(p)).join('');
+            } else {
+                pendentesDiv.style.display = 'none';
+            }
+
+            if (finalizados.length > 0) {
+                finalizadosDiv.style.display = 'block';
+                listaFinalizados.innerHTML = finalizados.map(p => criarCardPedido(p)).join('');
+            } else {
+                finalizadosDiv.style.display = 'none';
+            }
+        }
+
+        function criarCardPedido(pedido) {
+            return `
+                <div class="card pedido-card" onclick="verPedido('${pedido.id}')" style="cursor: pointer; transition: transform 0.2s;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--spacing-sm);">
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.875rem; color: var(--text-secondary);">Pedido</span>
+                            <p style="font-weight: 600; font-size: 1rem; margin: 0;">#${pedido.codigo_rastreio || pedido.id}</p>
+                        </div>
+                        <span style="background: ${getStatusColor(pedido.status)}; color: white; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-md); font-size: 0.75rem; font-weight: 600;">
+                            ${getStatusLabel(pedido.status)}
+                        </span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--spacing-md);">
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">${formatarData(pedido.criado_em)}</span>
+                        <span style="font-weight: 700; font-size: 1.125rem; color: var(--primary-600);">R$ ${parseFloat(pedido.total || 0).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function verPedido(pedidoId) {
+            window.location.href = `rastreio-github.html?lojaid=${currentLojaId}&id=${pedidoId}`;
+        }
+
+        function fazerNovoPedido() {
+            if (!currentLojaId) {
+                showToast('Loja não configurada', 'error');
+                return;
+            }
+            window.location.href = `cadastro-github.html?lojaid=${currentLojaId}`;
+        }
+
+        function sair() {
+            localStorage.removeItem(CLIENTE_KEY);
+            localStorage.removeItem('sistema_pedidos_logado');
+            window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+        }
+
+        if (unsubscribe) {
+            unsubscribe();
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cadastro - Sistema de Pedidos</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="font-size: 48px; margin-bottom: 20px;">📝</div>
+            <h1>Complete seu Cadastro</h1>
+            <p>Precisamos confirmar seus dados para a entrega</p>
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--spacing-sm);" id="lojaInfo"></p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="cadastroForm">
+            <div class="form-group">
+                <label class="form-label" for="telefone">Telefone</label>
+                <input type="tel" id="telefone" class="form-input" readonly>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="nome">Nome completo</label>
+                <input type="text" id="nome" class="form-input" placeholder="Digite seu nome" autocomplete="name" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="endereco">Endereço completo</label>
+                <textarea id="endereco" class="form-textarea" placeholder="Rua, número, bairro, ponto de referência..." rows="3" required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="btnSalvar">Salvar e Continuar</button>
+        </form>
+    </div>
+
+    <div class="toast" id="toast" style="display: none;"></div>
+
+    <script>
+        const LOJA_ID_KEY = 'tocomfome_loja_id';
+        const CLIENTE_KEY = 'sistema_pedidos_cliente';
+
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let db = null;
+        let app = null;
+        let currentLojaId = null;
+        let currentTelefone = null;
+
+        function getLojaId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let lojaid = urlParams.get('lojaid');
+            if (!lojaid) {
+                lojaid = localStorage.getItem(LOJA_ID_KEY);
+            } else {
+                localStorage.setItem(LOJA_ID_KEY, lojaid);
+            }
+            return lojaid;
+        }
+
+        function formatarTelefone(telefone) {
+            if (telefone.length === 11) {
+                return `(${telefone.substring(0, 2)}) ${telefone.substring(2, 7)}-${telefone.substring(7)}`;
+            }
+            return telefone;
+        }
+
+        function showError(mensagem) {
+            const errorEl = document.getElementById('errorMessage');
+            if (errorEl) {
+                errorEl.textContent = mensagem;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        function showToast(mensagem, tipo = 'success') {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = mensagem;
+                toast.className = `toast ${tipo}`;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+
+        async function initFirebase() {
+            if (db) return db;
+            try {
+                app = firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                return db;
+            } catch (error) {
+                console.error('[CADASTRO-GITHUB] Erro Firebase:', error);
+                return null;
+            }
+        }
+
+        async function init() {
+            currentLojaId = getLojaId();
+            document.getElementById('lojaInfo').textContent = currentLojaId ? `🏪 Loja: ${currentLojaId}` : '⚠️ Loja não configurada';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            currentTelefone = urlParams.get('telefone');
+
+            if (!currentTelefone) {
+                if (currentLojaId) {
+                    window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+                } else {
+                    window.location.href = 'telefone-github.html';
+                }
+                return;
+            }
+
+            await initFirebase();
+
+            document.getElementById('telefone').value = formatarTelefone(currentTelefone);
+        }
+
+        async function salvarClienteFirebase(cliente) {
+            const clienteData = {
+                nome: cliente.nome,
+                telefone: cliente.telefone,
+                endereco: cliente.endereco,
+                lojaid: currentLojaId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                synced_at: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.collection('clientes').doc(cliente.telefone).set(clienteData);
+        }
+
+        function salvarClienteLocal(telefone, dados) {
+            const cliente = { telefone: telefone, ...dados };
+            localStorage.setItem(CLIENTE_KEY, JSON.stringify(cliente));
+            localStorage.setItem('sistema_pedidos_logado', 'true');
+        }
+
+        document.getElementById('cadastroForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('nome').value.trim();
+            const endereco = document.getElementById('endereco').value.trim();
+            const btn = document.getElementById('btnSalvar');
+            const errorEl = document.getElementById('errorMessage');
+
+            errorEl.style.display = 'none';
+
+            if (nome.length < 3) {
+                showError('Digite seu nome completo');
+                return;
+            }
+
+            if (endereco.length < 10) {
+                showError('Digite um endereço completo');
+                return;
+            }
+
+            if (!currentLojaId) {
+                showError('Loja não configurada');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
+
+            try {
+                await salvarClienteFirebase({
+                    telefone: currentTelefone,
+                    nome: nome,
+                    endereco: endereco
+                });
+
+                salvarClienteLocal(currentTelefone, { nome, endereco });
+
+                showToast('Cadastro realizado com sucesso!', 'success');
+
+                setTimeout(() => {
+                    window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+                }, 1000);
+            } catch (error) {
+                console.error('[CADASTRO-GITHUB] Erro:', error);
+                showError('Erro ao cadastrar. Tente novamente.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Salvar e Continuar';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

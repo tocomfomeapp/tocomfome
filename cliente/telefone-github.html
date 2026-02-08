@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Telefone - Sistema de Pedidos</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
+            <h1>Bem-vindo!</h1>
+            <p>Digite seu telefone para continuar</p>
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--spacing-sm);" id="lojaInfo"></p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="telefoneForm">
+            <div class="form-group">
+                <label class="form-label" for="telefone">Telefone</label>
+                <input 
+                    type="tel" 
+                    id="telefone" 
+                    class="form-input" 
+                    placeholder="(00) 00000-0000"
+                    autocomplete="tel"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="btnContinuar">
+                Continuar
+            </button>
+        </form>
+
+        <p style="text-align: center; margin-top: var(--spacing-lg); font-size: 0.875rem; color: var(--text-tertiary);">
+            O primeiro pedido solicita cadastro<br>Próximos pedidos são mais rápidos!
+        </p>
+
+        <div style="text-align: center; margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 1px solid var(--border-light);">
+            <p style="font-size: 0.875rem; color: var(--text-tertiary); margin-bottom: var(--spacing-sm);">
+                Já fez um pedido?
+            </p>
+            <a href="#" id="rastreioLink" class="btn btn-secondary" style="max-width: 200px; margin: 0 auto;">
+                📦 Rastrear Pedido
+            </a>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" style="display: none;"></div>
+
+    <script>
+        const LOJA_ID_KEY = 'tocomfome_loja_id';
+        const CLIENTE_KEY = 'sistema_pedidos_cliente';
+
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let db = null;
+        let app = null;
+        let currentLojaId = null;
+
+        function getLojaId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let lojaid = urlParams.get('lojaid');
+            if (!lojaid) {
+                lojaid = localStorage.getItem(LOJA_ID_KEY);
+            } else {
+                localStorage.setItem(LOJA_ID_KEY, lojaid);
+            }
+            return lojaid;
+        }
+
+        function getCliente() {
+            const dados = localStorage.getItem(CLIENTE_KEY);
+            if (dados) {
+                try {
+                    return JSON.parse(dados);
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        function limparTelefone(telefone) {
+            return telefone.replace(/\D/g, '');
+        }
+
+        function formatarTelefone(telefone) {
+            const limpo = limparTelefone(telefone);
+            if (limpo.length === 11) {
+                return `(${limpo.substring(0, 2)}) ${limpo.substring(2, 7)}-${limpo.substring(7)}`;
+            }
+            return telefone;
+        }
+
+        function telefoneValido(telefone) {
+            const limpo = limparTelefone(telefone);
+            if (limpo.length < 10 || limpo.length > 11) return false;
+            if (/^(\d)\1+$/.test(limpo)) return false;
+            if (limpo[0] === '0') return false;
+            return true;
+        }
+
+        function showError(mensagem) {
+            const errorEl = document.getElementById('errorMessage');
+            if (errorEl) {
+                errorEl.textContent = mensagem;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        function showToast(mensagem, tipo = 'success') {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = mensagem;
+                toast.className = `toast ${tipo}`;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+
+        async function initFirebase() {
+            if (db) return db;
+            try {
+                app = firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                return db;
+            } catch (error) {
+                console.error('[TELEFONE-GITHUB] Erro Firebase:', error);
+                return null;
+            }
+        }
+
+        async function init() {
+            currentLojaId = getLojaId();
+            document.getElementById('lojaInfo').textContent = currentLojaId ? `🏪 Loja: ${currentLojaId}` : '⚠️ Loja não configurada';
+
+            if (currentLojaId) {
+                document.getElementById('rastreioLink').href = `rastreio-github.html?lojaid=${currentLojaId}`;
+            }
+
+            await initFirebase();
+
+            const cliente = getCliente();
+            const estaLogado = localStorage.getItem('sistema_pedidos_logado');
+
+            if (cliente && cliente.telefone && estaLogado && currentLojaId) {
+                window.location.href = `meus-pedidos.html?lojaid=${currentLojaId}`;
+                return;
+            }
+
+            localStorage.removeItem('sistema_pedidos_logado');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const telefoneParam = urlParams.get('telefone');
+
+            if (telefoneParam) {
+                document.getElementById('telefone').value = formatarTelefone(telefoneParam);
+            }
+        }
+
+        async function verificarTelefone(telefone) {
+            const telefoneLimpo = limparTelefone(telefone);
+
+            try {
+                const doc = await db.collection('clientes').doc(telefoneLimpo).get();
+
+                if (doc.exists && doc.data().lojaid === currentLojaId) {
+                    return { existe: true, cliente: doc.data() };
+                }
+                return { existe: false };
+            } catch (error) {
+                console.error('[TELEFONE-GITHUB] Erro ao verificar:', error);
+                throw error;
+            }
+        }
+
+        function salvarCliente(telefone, dados) {
+            const cliente = {
+                telefone: telefone,
+                ...dados
+            };
+            localStorage.setItem(CLIENTE_KEY, JSON.stringify(cliente));
+            localStorage.setItem('sistema_pedidos_logado', 'true');
+        }
+
+        document.getElementById('telefoneForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const telefone = document.getElementById('telefone').value.trim();
+            const btn = document.getElementById('btnContinuar');
+            const errorEl = document.getElementById('errorMessage');
+
+            errorEl.style.display = 'none';
+
+            if (!telefoneValido(telefone)) {
+                showError('Digite um telefone válido');
+                return;
+            }
+
+            if (!currentLojaId) {
+                showError('Loja não configurada. Adicione ?lojaid=ID na URL');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Verificando...';
+
+            try {
+                const result = await verificarTelefone(telefone);
+
+                if (result.existe) {
+                    salvarCliente(telefone, result.cliente);
+                    window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+                } else {
+                    window.location.href = `cadastro-github.html?lojaid=${currentLojaId}&telefone=${limparTelefone(telefone)}`;
+                }
+            } catch (error) {
+                showError('Erro ao verificar telefone. Tente novamente.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Continuar';
+            }
+        });
+
+        document.getElementById('telefone').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 2) {
+                    value = `(${value}`;
+                } else if (value.length <= 7) {
+                    value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
+                } else {
+                    value = `(${value.substring(0, 2)}) ${value.substring(2, 7)}-${value.substring(7, 11)}`;
+                }
+            }
+            e.target.value = value;
+        });
+
+        init();
+    </script>
+</body>
+</html>

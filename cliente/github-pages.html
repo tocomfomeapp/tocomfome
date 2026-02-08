@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cliente - Sistema de Pedidos</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <div class="container" style="padding-bottom: 100px;">
+        <div class="header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-xl); margin-bottom: var(--spacing-lg); padding: var(--spacing-lg);">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <div>
+                    <h1 style="font-size: 1.25rem;">👋 Olá, <span id="clienteNome">Cliente</span></h1>
+                    <p style="font-size: 0.875rem; opacity: 0.9;" id="clienteTelefone"></p>
+                    <p style="font-size: 0.75rem; opacity: 0.7;" id="lojaInfo"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--spacing-lg);">
+            <h3 style="margin-bottom: var(--spacing-md);">📦 Acompanhar Pedido</h3>
+            <div class="form-group">
+                <label class="form-label" for="codigoRastreio">Código de Rastreio</label>
+                <input type="text" id="codigoRastreio" class="form-input" placeholder="Digite o código do pedido">
+            </div>
+            <button class="btn btn-primary" onclick="rastrearPedido()" style="width: 100%;">Rastrear</button>
+        </div>
+
+        <div style="display: grid; gap: var(--spacing-md); margin-bottom: var(--spacing-xl);">
+            <button class="btn btn-primary" onclick="fazerNovoPedido()" style="padding: var(--spacing-lg);">
+                <span style="font-size: 1.5rem;">🍔</span>
+                <span>Fazer Novo Pedido</span>
+            </button>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--spacing-lg);">
+            <h3 style="margin-bottom: var(--spacing-md);">📱 Fazer Login</h3>
+            <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: var(--spacing-md);">
+                Digite seu telefone para acessar seus pedidos anteriores
+            </p>
+            <div class="form-group">
+                <label class="form-label" for="telefoneLogin">Telefone</label>
+                <input type="tel" id="telefoneLogin" class="form-input" placeholder="(00) 00000-0000">
+            </div>
+            <button class="btn btn-secondary" onclick="loginComTelefone()" style="width: 100%;">Entrar</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" style="display: none;"></div>
+
+    <script>
+        const LOJA_ID_KEY = 'tocomfome_loja_id';
+        const CLIENTE_KEY = 'sistema_pedidos_cliente';
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let db = null;
+        let app = null;
+        let currentLojaId = null;
+
+        function getLojaId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let lojaid = urlParams.get('lojaid');
+
+            if (!lojaid) {
+                lojaid = localStorage.getItem(LOJA_ID_KEY);
+            } else {
+                localStorage.setItem(LOJA_ID_KEY, lojaid);
+            }
+
+            return lojaid;
+        }
+
+        function getCliente() {
+            const dados = localStorage.getItem(CLIENTE_KEY);
+            if (dados) {
+                try {
+                    return JSON.parse(dados);
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        function limparTelefone(telefone) {
+            return telefone.replace(/\D/g, '');
+        }
+
+        function formatarTelefone(telefone) {
+            const limpo = limparTelefone(telefone);
+            if (limpo.length === 11) {
+                return `(${limpo.substring(0, 2)}) ${limpo.substring(2, 7)}-${limpo.substring(7)}`;
+            }
+            return telefone;
+        }
+
+        function showToast(mensagem, tipo = 'success') {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = mensagem;
+                toast.className = `toast ${tipo}`;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+
+        async function initFirebase() {
+            if (db) return db;
+
+            try {
+                app = firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                console.log('[GITHUB-PAGES] Firebase inicializado');
+                return db;
+            } catch (error) {
+                console.error('[GITHUB-PAGES] Erro ao inicializar Firebase:', error);
+                showToast('Erro ao conectar com servidor', 'error');
+                return null;
+            }
+        }
+
+        async function init() {
+            currentLojaId = getLojaId();
+
+            if (!currentLojaId) {
+                showToast('Configure o ID da loja na URL: ?lojaid=SEU_ID', 'error');
+                document.getElementById('lojaInfo').textContent = '⚠️ Loja não configurada';
+                return;
+            }
+
+            document.getElementById('lojaInfo').textContent = `🏪 Loja: ${currentLojaId}`;
+
+            await initFirebase();
+
+            const cliente = getCliente();
+            if (cliente && cliente.telefone) {
+                document.getElementById('clienteNome').textContent = cliente.nome || 'Cliente';
+                document.getElementById('clienteTelefone').textContent = formatarTelefone(cliente.telefone);
+            }
+        }
+
+        async function rastrearPedido() {
+            const codigo = document.getElementById('codigoRastreio').value.trim();
+
+            if (!codigo) {
+                showToast('Digite o código do pedido');
+                return;
+            }
+
+            if (!currentLojaId) {
+                showToast('Loja não configurada', 'error');
+                return;
+            }
+
+            try {
+                const doc = await db.collection(`pedidos_${currentLojaId}`).doc(codigo).get();
+
+                if (doc.exists) {
+                    const pedido = doc.data();
+                    localStorage.setItem('rastreio_pedido', JSON.stringify(pedido));
+                    window.location.href = `rastreio.html?lojaid=${currentLojaId}&pedido=${codigo}`;
+                } else {
+                    showToast('Pedido não encontrado');
+                }
+            } catch (error) {
+                console.error('[GITHUB-PAGES] Erro ao rastrear pedido:', error);
+                showToast('Erro ao buscar pedido', 'error');
+            }
+        }
+
+        async function loginComTelefone() {
+            const telefone = document.getElementById('telefoneLogin').value.trim();
+
+            if (!telefoneValido(telefone)) {
+                showToast('Digite um telefone válido');
+                return;
+            }
+
+            const telefoneLimpo = limparTelefone(telefone);
+
+            if (!currentLojaId) {
+                showToast('Loja não configurada', 'error');
+                return;
+            }
+
+            try {
+                const doc = await db.collection(`clientes_${currentLojaId}`).doc(telefoneLimpo).get();
+
+                if (doc.exists) {
+                    const cliente = doc.data();
+                    localStorage.setItem(CLIENTE_KEY, JSON.stringify(cliente));
+                    localStorage.setItem('sistema_pedidos_logado', 'true');
+                    showToast('Login realizado com sucesso!');
+                    window.location.href = `meus-pedidos.html?loegit add .id=${currentLojaId}`;
+                } else {
+                    showToast('Cliente não encontrado. Faça seu cadastro.');
+                    setTimeout(() => {
+                        window.location.href = `cadastro.html?lojaid=${currentLojaId}&telefone=${telefoneLimpo}`;
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('[GITHUB-PAGES] Erro no login:', error);
+                showToast('Erro ao fazer login', 'error');
+            }
+        }
+
+        function telefoneValido(telefone) {
+            const limpo = limparTelefone(telefone);
+            return limpo.length >= 10 && limpo.length <= 11;
+        }
+
+        function fazerNovoPedido() {
+            if (!currentLojaId) {
+                showToast('Loja não configurada', 'error');
+                return;
+            }
+            window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+        }
+
+        document.getElementById('telefoneLogin').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 2) {
+                    value = `(${value}`;
+                } else if (value.length <= 7) {
+                    value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
+                } else {
+                    value = `(${value.substring(0, 2)}) ${value.substring(2, 7)}-${value.substring(7, 11)}`;
+                }
+            }
+            e.target.value = value;
+        });
+
+        init();
+    </script>
+</body>
+</html>
