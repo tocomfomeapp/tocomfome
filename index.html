@@ -74,7 +74,6 @@
     <div class="toast" id="toast" style="display: none;"></div>
 
     <script>
-        const LOJA_ID_KEY = 'tocomfome_loja_id';
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
             authDomain: "tocomfome-bbad8.firebaseapp.com",
@@ -116,11 +115,7 @@
 
         async function init() {
             const urlLojaId = getLojaIdFromUrl();
-            currentLojaId = urlLojaId || localStorage.getItem(LOJA_ID_KEY);
-
-            if (urlLojaId) {
-                localStorage.setItem(LOJA_ID_KEY, urlLojaId);
-            }
+            currentLojaId = urlLojaId;
 
             if (!currentLojaId) {
                 document.getElementById('statusInfo').textContent = 'Loja não identificada';

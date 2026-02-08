@@ -42,7 +42,6 @@
     <div class="toast" id="toast" style="display: none;"></div>
 
     <script>
-        const LOJA_ID_KEY = 'tocomfome_loja_id';
         const CLIENTE_KEY = 'sistema_pedidos_cliente';
 
         const FIREBASE_CONFIG = {
@@ -61,13 +60,7 @@
 
         function getLojaId() {
             const urlParams = new URLSearchParams(window.location.search);
-            let lojaid = urlParams.get('lojaid');
-            if (!lojaid) {
-                lojaid = localStorage.getItem(LOJA_ID_KEY);
-            } else {
-                localStorage.setItem(LOJA_ID_KEY, lojaid);
-            }
-            return lojaid;
+            return urlParams.get('lojaid');
         }
 
         function formatarTelefone(telefone) {
@@ -133,13 +126,13 @@
                 nome: cliente.nome,
                 telefone: cliente.telefone,
                 endereco: cliente.endereco,
-                lojaid: currentLojaId,
+                loja_id: currentLojaId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 synced_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            await db.collection('clientes').doc(cliente.telefone).set(clienteData);
+            await db.collection(`clientes_${currentLojaId}`).doc(cliente.telefone).set(clienteData);
         }
 
         function salvarClienteLocal(telefone, dados) {

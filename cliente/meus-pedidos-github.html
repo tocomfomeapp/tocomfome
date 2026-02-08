@@ -81,7 +81,6 @@
     <div class="toast" id="toast" style="display: none;"></div>
 
     <script>
-        const LOJA_ID_KEY = 'tocomfome_loja_id';
         const CLIENTE_KEY = 'sistema_pedidos_cliente';
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
@@ -104,13 +103,7 @@
 
         function getLojaId() {
             const urlParams = new URLSearchParams(window.location.search);
-            let lojaid = urlParams.get('lojaid');
-            if (!lojaid) {
-                lojaid = localStorage.getItem(LOJA_ID_KEY);
-            } else {
-                localStorage.setItem(LOJA_ID_KEY, lojaid);
-            }
-            return lojaid;
+            return urlParams.get('lojaid');
         }
 
         function getCliente() {
@@ -215,8 +208,8 @@
             try {
                 const telefone = limparTelefone(cliente.telefone);
 
-                const snapshot = await db.collection('pedidos')
-                    .where('lojaid', '==', currentLojaId)
+                const snapshot = await db.collection(`pedidos_${currentLojaId}`)
+                    .where('loja_id', '==', currentLojaId)
                     .where('cliente_telefone', '==', telefone)
                     .orderBy('criado_em', 'desc')
                     .limit(50)
@@ -243,8 +236,8 @@
 
             const telefone = limparTelefone(cliente.telefone);
 
-            unsubscribe = db.collection('pedidos')
-                .where('lojaid', '==', currentLojaId)
+            unsubscribe = db.collection(`pedidos_${currentLojaId}`)
+                .where('loja_id', '==', currentLojaId)
                 .where('cliente_telefone', '==', telefone)
                 .orderBy('criado_em', 'desc')
                 .onSnapshot(snapshot => {

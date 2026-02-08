@@ -55,7 +55,6 @@
     <div class="toast" id="toast" style="display: none;"></div>
 
     <script>
-        const LOJA_ID_KEY = 'tocomfome_loja_id';
         const CLIENTE_KEY = 'sistema_pedidos_cliente';
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
@@ -72,15 +71,7 @@
 
         function getLojaId() {
             const urlParams = new URLSearchParams(window.location.search);
-            let lojaid = urlParams.get('lojaid');
-
-            if (!lojaid) {
-                lojaid = localStorage.getItem(LOJA_ID_KEY);
-            } else {
-                localStorage.setItem(LOJA_ID_KEY, lojaid);
-            }
-
-            return lojaid;
+            return urlParams.get('lojaid');
         }
 
         function getCliente() {
@@ -204,11 +195,11 @@
                     localStorage.setItem(CLIENTE_KEY, JSON.stringify(cliente));
                     localStorage.setItem('sistema_pedidos_logado', 'true');
                     showToast('Login realizado com sucesso!');
-                    window.location.href = `meus-pedidos.html?loegit add .id=${currentLojaId}`;
+                    window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
                 } else {
                     showToast('Cliente não encontrado. Faça seu cadastro.');
                     setTimeout(() => {
-                        window.location.href = `cadastro.html?lojaid=${currentLojaId}&telefone=${telefoneLimpo}`;
+                        window.location.href = `cadastro-github.html?lojaid=${currentLojaId}&telefone=${telefoneLimpo}`;
                     }, 1500);
                 }
             } catch (error) {

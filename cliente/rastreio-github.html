@@ -43,7 +43,6 @@
     <div class="toast" id="toast" style="display: none;"></div>
 
     <script>
-        const LOJA_ID_KEY = 'tocomfome_loja_id';
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
             authDomain: "tocomfome-bbad8.firebaseapp.com",
@@ -59,10 +58,7 @@
 
         function getLojaId() {
             const urlParams = new URLSearchParams(window.location.search);
-            let lojaid = urlParams.get('lojaid');
-            if (!lojaid) lojaid = localStorage.getItem(LOJA_ID_KEY);
-            else localStorage.setItem(LOJA_ID_KEY, lojaid);
-            return lojaid;
+            return urlParams.get('lojaid');
         }
 
         function showToast(mensagem, tipo = 'success') {
@@ -120,11 +116,11 @@
             document.getElementById('btnRastrear').textContent = 'Buscando...';
 
             try {
-                const doc = await db.collection('pedidos').doc(codigo).get();
+                const doc = await db.collection(`pedidos_${currentLojaId}`).doc(codigo).get();
                 if (!doc.exists) { showToast('Pedido não encontrado'); }
                 else {
                     const p = doc.data();
-                    if (p.lojaid !== currentLojaId) {
+                    if (p.loja_id !== currentLojaId) {
                         showToast('Pedido não encontrado nesta loja');
                     }
                     else {

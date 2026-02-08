@@ -54,7 +54,6 @@
     <div class="toast" id="toast" style="display: none;"></div>
 
     <script>
-        const LOJA_ID_KEY = 'tocomfome_loja_id';
         const CLIENTE_KEY = 'sistema_pedidos_cliente';
 
         const FIREBASE_CONFIG = {
@@ -72,13 +71,7 @@
 
         function getLojaId() {
             const urlParams = new URLSearchParams(window.location.search);
-            let lojaid = urlParams.get('lojaid');
-            if (!lojaid) {
-                lojaid = localStorage.getItem(LOJA_ID_KEY);
-            } else {
-                localStorage.setItem(LOJA_ID_KEY, lojaid);
-            }
-            return lojaid;
+            return urlParams.get('lojaid');
         }
 
         function getCliente() {
@@ -157,7 +150,7 @@
             const estaLogado = localStorage.getItem('sistema_pedidos_logado');
 
             if (cliente && cliente.telefone && estaLogado && currentLojaId) {
-                window.location.href = `meus-pedidos.html?lojaid=${currentLojaId}`;
+                window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
                 return;
             }
 
@@ -175,9 +168,9 @@
             const telefoneLimpo = limparTelefone(telefone);
 
             try {
-                const doc = await db.collection('clientes').doc(telefoneLimpo).get();
+                const doc = await db.collection(`clientes_${currentLojaId}`).doc(telefoneLimpo).get();
 
-                if (doc.exists && doc.data().lojaid === currentLojaId) {
+                if (doc.exists && doc.data().loja_id === currentLojaId) {
                     return { existe: true, cliente: doc.data() };
                 }
                 return { existe: false };
