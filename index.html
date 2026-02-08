@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <meta name="description" content="Sistema de pedidos online para restaurantes">
+    <meta name="author" content="TOCOMFOME">
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Sistema de Pedidos</title>
+    <link rel="stylesheet" href="cliente/style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="text-align: center; margin-bottom: var(--spacing-xl);">
+            <div style="font-size: 64px; margin-bottom: var(--spacing-md);">🍔</div>
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-sm);">Sistema de Pedidos</h1>
+            <p style="color: var(--text-secondary); font-size: 0.875rem;" id="statusInfo">Carregando...</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Identificando sua loja...</p>
+        </div>
+
+        <div id="content" style="display: none;">
+            <a href="#" id="btnPedido" class="btn btn-primary" style="margin-bottom: var(--spacing-xl);">
+                📱 Fazer Pedido
+            </a>
+
+            <div class="card">
+                <h3 style="margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">✨ Como funciona</h3>
+                
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                    <div style="width: 32px; height: 32px; background: var(--primary-600); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">1</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 2px;">Digite seu telefone</div>
+                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Cadastro rápido e simples</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                    <div style="width: 32px; height: 32px; background: var(--primary-600); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">2</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 2px;">Monte seu pedido</div>
+                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Escolha seus produtos</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <div style="width: 32px; height: 32px; background: var(--primary-600); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">3</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 2px;">Receba em casa</div>
+                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Pagamento na entrega</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: var(--spacing-md);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-sm);">
+                    <span style="font-size: 1.5rem;">🔒</span>
+                    <span style="font-weight: 600;">Seguro e prático</span>
+                </div>
+                <div style="color: var(--text-secondary); font-size: 0.875rem;">
+                    Seus dados são salvos automaticamente para<br>próximos pedidos ainda mais rápidos
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" style="display: none;"></div>
+
+    <script>
+        const LOJA_ID_KEY = 'tocomfome_loja_id';
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let db = null;
+        let currentLojaId = null;
+
+        function getLojaIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('lojaid');
+        }
+
+        function showToast(mensagem, tipo = 'success') {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = mensagem;
+                toast.className = `toast ${tipo}`;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+
+        async function initFirebase() {
+            if (db) return db;
+            try {
+                firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                return db;
+            } catch (error) {
+                console.error('Firebase error:', error);
+                return null;
+            }
+        }
+
+        async function init() {
+            const urlLojaId = getLojaIdFromUrl();
+            currentLojaId = urlLojaId || localStorage.getItem(LOJA_ID_KEY);
+
+            if (urlLojaId) {
+                localStorage.setItem(LOJA_ID_KEY, urlLojaId);
+            }
+
+            if (!currentLojaId) {
+                document.getElementById('statusInfo').textContent = 'Loja não identificada';
+                document.getElementById('statusInfo').style.color = 'var(--error-500)';
+                showToast('Adicione ?lojaid=001 na URL', 'error');
+                return;
+            }
+
+            await initFirebase();
+
+            let nomeLoja = 'Loja';
+            try {
+                const doc = await db.collection('lojas').doc(currentLojaId).get();
+                if (doc.exists) {
+                    nomeLoja = doc.data().nome || 'Loja';
+                }
+            } catch (error) {
+                console.log('Loja não encontrada no Firebase');
+            }
+
+            document.getElementById('statusInfo').textContent = `🏪 ${nomeLoja}`;
+            document.getElementById('btnPedido').href = `cliente/telefone-github.html?lojaid=${currentLojaId}`;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        }
+
+        init();
+    </script>
+</body>
+</html>
