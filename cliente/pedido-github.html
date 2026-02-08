@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pedido - Sistema de Pedidos</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header-pedido">
+            <div class="header-content">
+                <div class="emoji-mascote">🍔</div>
+                <h1>Monte seu Pedido</h1>
+                <p id="boasVindas">Olá!</p>
+            </div>
+            <a href="meus-pedidos-github.html" class="btn-mini">
+                📦 Meus Pedidos
+            </a>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando produtos...</p>
+        </div>
+
+        <div id="buscaContainer" style="display: none; margin-bottom: var(--spacing-md);">
+            <div style="position: relative;">
+                <input 
+                    type="text" 
+                    id="buscaProduto" 
+                    class="form-input" 
+                    placeholder="Buscar produto..."
+                    autocomplete="off"
+                    style="padding-left: 45px;"
+                >
+                <span style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary);">🔍</span>
+            </div>
+        </div>
+
+        <div id="categoriasWrapper" style="display: none; margin-bottom: var(--spacing-lg); overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div id="categoriasHorizontal" style="display: flex; gap: var(--spacing-sm); padding-bottom: var(--spacing-xs);"></div>
+        </div>
+
+        <div id="tipoPedidoContainer" style="display: none; margin-bottom: var(--spacing-lg);">
+            <p class="form-label">Como você gostaria de receber?</p>
+            <div class="tipo-pedido-opcoes">
+                <button class="tipo-pedido-btn" id="btnEntrega" onclick="selecionarTipo('entrega')">
+                    <span class="tipo-pedido-icon">🚗</span>
+                    <span class="tipo-pedido-text">Delivery</span>
+                </button>
+                <button class="tipo-pedido-btn" id="btnRetirada" onclick="selecionarTipo('retirada')">
+                    <span class="tipo-pedido-icon">🏃</span>
+                    <span class="tipo-pedido-text">Retirar</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="produtosGrid" class="produtos-grid" style="display: none;"></div>
+
+        <div id="semProdutos" class="empty-state" style="display: none;">
+            <div class="empty-icon">😕</div>
+            <p>Nenhum produto disponível no momento</p>
+        </div>
+    </div>
+
+    <div id="resumoPedido" class="resumo-pedido" style="display: none;">
+        <div class="resumo-content">
+            <div class="resumo-info">
+                <div class="resumo-total">Total</div>
+                <div class="resumo-valor" id="resumoTotal">R$ 0,00</div>
+                <div class="resumo-itens" id="resumoItens">0 itens</div>
+            </div>
+            <button class="btn btn-primary" id="btnVerResumo" style="width: auto; gap: 8px;">
+                <span>🛒</span>
+                <span id="btnVerResumoText">Ver Pedido</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" style="display: none;"></div>
+
+    <script>
+        const CLIENTE_KEY = 'sistema_pedidos_cliente';
+        const CARRINHO_KEY = 'tocomfome_carrinho';
+        const TIPO_PEDIDO_KEY = 'tocomfome_tipo_pedido';
+
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let db = null;
+        let app = null;
+        let currentLojaId = null;
+        let cliente = null;
+        let produtos = [];
+        let carrinho = [];
+        let termoBusca = '';
+        let categoriaAtual = 'todas';
+        let tipoPedido = null;
+
+        function getLojaId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('lojaid');
+        }
+
+        function getCliente() {
+            const dados = localStorage.getItem(CLIENTE_KEY);
+            if (dados) {
+                try { return JSON.parse(dados); } catch (e) { return null; }
+            }
+            return null;
+        }
+
+        function getCarrinho() {
+            const dados = localStorage.getItem(CARRINHO_KEY);
+            if (dados) {
+                try { return JSON.parse(dados); } catch (e) { return []; }
+            }
+            return [];
+        }
+
+        function salvarCarrinho() {
+            localStorage.setItem(CARRINHO_KEY, JSON.stringify(carrinho));
+        }
+
+        function getTipoPedido() {
+            return localStorage.getItem(TIPO_PEDIDO_KEY);
+        }
+
+        function showToast(mensagem, tipo = 'success') {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = mensagem;
+                toast.className = `toast ${tipo}`;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+        }
+
+        async function initFirebase() {
+            if (db) return db;
+            try {
+                app = firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                return db;
+            } catch (error) {
+                console.error('Firebase error:', error);
+                return null;
+            }
+        }
+
+        async function init() {
+            currentLojaId = getLojaId();
+            if (!currentLojaId) {
+                showToast('Adicione ?lojaid=ID na URL', 'error');
+                return;
+            }
+
+            await initFirebase();
+
+            cliente = getCliente();
+            if (!cliente) {
+                window.location.href = `telefone-github.html?lojaid=${currentLojaId}`;
+                return;
+            }
+
+            document.getElementById('boasVindas').textContent = `Olá, ${cliente.nome}!`;
+
+            carrinho = getCarrinho();
+            tipoPedido = getTipoPedido();
+            if (tipoPedido) {
+                document.getElementById('tipoPedidoContainer').style.display = 'block';
+                document.getElementById('tipoPedidoContainer').querySelector('p').style.display = 'none';
+                document.querySelector('.tipo-pedido-opcoes').style.display = 'flex';
+                document.getElementById(`btn${tipoPedido.charAt(0).toUpperCase() + tipoPedido.slice(1)}`).classList.add('selected');
+            }
+
+            await carregarProdutos();
+            atualizarResumo();
+
+            document.getElementById('buscaContainer').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function carregarProdutos() {
+            try {
+                const snapshot = await db.collection('produtos')
+                    .where('loja_id', '==', currentLojaId)
+                    .where('ativo', '==', 1)
+                    .get();
+
+                produtos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (produtos.length === 0) {
+                    document.getElementById('semProdutos').style.display = 'block';
+                    return;
+                }
+
+                const categorias = ['todas', ...new Set(produtos.map(p => p.categoria || 'Geral'))];
+                const container = document.getElementById('categoriasHorizontal');
+                container.innerHTML = categorias.map(c => `
+                    <button class="categoria-btn ${c === 'todas' ? 'active' : ''}" 
+                            onclick="filtrarCategoria('${c}')"
+                            data-categoria="${c}">
+                        ${c === 'todas' ? '🍽️ Todos' : c}
+                    </button>
+                `).join('');
+
+                document.getElementById('categoriasWrapper').style.display = 'block';
+                document.getElementById('produtosGrid').style.display = 'grid';
+
+                renderizarProdutos();
+            } catch (error) {
+                console.error('Erro ao carregar produtos:', error);
+                showToast('Erro ao carregar produtos', 'error');
+            }
+        }
+
+        function filtrarCategoria(categoria) {
+            categoriaAtual = categoria;
+            document.querySelectorAll('.categoria-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.categoria === categoria);
+            });
+            renderizarProdutos();
+        }
+
+        function buscarProduto(termo) {
+            termoBusca = termo.toLowerCase();
+            renderizarProdutos();
+        }
+
+        function renderizarProdutos() {
+            const grid = document.getElementById('produtosGrid');
+            let filtrados = produtos;
+
+            if (termoBusca) {
+                filtrados = filtrados.filter(p => p.nome.toLowerCase().includes(termoBusca));
+            }
+
+            if (categoriaAtual !== 'todas') {
+                filtrados = filtrados.filter(p => (p.categoria || 'Geral') === categoriaAtual);
+            }
+
+            if (filtrados.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: var(--text-tertiary);">Nenhum produto encontrado</p>';
+                return;
+            }
+
+            grid.innerHTML = filtrados.map(p => `
+                <div class="produto-card" onclick="adicionarAoCarrinho('${p.id}', '${p.nome}', ${p.preco}, '${p.categoria || ''}')">
+                    <div class="produto-info">
+                        <div class="produto-nome">${p.nome}</div>
+                        <div class="produto-preco">${formatarMoeda(p.preco)}</div>
+                    </div>
+                    <button class="produto-add-btn">+</button>
+                </div>
+            `).join('');
+        }
+
+        function adicionarAoCarrinho(produtoId, nome, preco, categoria) {
+            const existente = carrinho.find(item => item.produto_id === produtoId);
+
+            if (existente) {
+                existente.quantidade++;
+                existente.subtotal = existente.quantidade * existente.preco_unitario;
+            } else {
+                carrinho.push({
+                    produto_id: produtoId,
+                    nome,
+                    preco_unitario: preco,
+                    quantidade: 1,
+                    subtotal: preco,
+                    categoria
+                });
+            }
+
+            salvarCarrinho();
+            atualizarResumo();
+            showToast(`${nome} adicionado!`, 'success');
+        }
+
+        function selecionarTipo(tipo) {
+            tipoPedido = tipo;
+            localStorage.setItem(TIPO_PEDIDO_KEY, tipo);
+
+            document.querySelectorAll('.tipo-pedido-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`btn${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`).classList.add('selected');
+
+            atualizarResumo();
+        }
+
+        function atualizarResumo() {
+            const total = carrinho.reduce((soma, item) => soma + item.subtotal, 0);
+            document.getElementById('resumoTotal').textContent = formatarMoeda(total);
+            document.getElementById('resumoItens').textContent = `${carrinho.reduce((soma, item) => soma + item.quantidade, 0)} itens`;
+
+            const resumoPedido = document.getElementById('resumoPedido');
+            resumoPedido.style.display = carrinho.length > 0 ? 'block' : 'none';
+
+            if (tipoPedido && carrinho.length > 0) {
+                document.getElementById('btnVerResumo').onclick = () => {
+                    window.location.href = `revisao.html?lojaid=${currentLojaId}`;
+                };
+            }
+        }
+
+        document.getElementById('buscaProduto').addEventListener('input', function(e) {
+            buscarProduto(e.target.value);
+        });
+
+        init();
+    </script>
+</body>
+</html>
