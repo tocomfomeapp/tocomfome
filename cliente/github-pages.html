@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cliente - Sistema de Pedidos</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
@@ -125,6 +123,9 @@
         async function init() {
             currentLojaId = getLojaId();
 
+            const urlParams = new URLSearchParams(window.location.search);
+            window.acao = urlParams.get('acao');
+
             if (!currentLojaId) {
                 showToast('Configure o ID da loja na URL: ?lojaid=SEU_ID', 'error');
                 document.getElementById('lojaInfo').textContent = '⚠️ Loja não configurada';
@@ -194,7 +195,11 @@
                     localStorage.setItem(CLIENTE_KEY, JSON.stringify(cliente));
                     localStorage.setItem('sistema_pedidos_logado', 'true');
                     showToast('Login realizado com sucesso!');
-                    window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+                    if (acao === 'fazer_pedido') {
+                        window.location.href = `pedido-github.html?lojaid=${currentLojaId}`;
+                    } else {
+                        window.location.href = `meus-pedidos-github.html?lojaid=${currentLojaId}`;
+                    }
                 } else {
                     showToast('Cliente não encontrado. Faça seu cadastro.');
                     setTimeout(() => {

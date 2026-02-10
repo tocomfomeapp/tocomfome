@@ -191,14 +191,27 @@
                 }
 
                 currentLojaId = getLojaId();
-                document.getElementById('lojaInfo').textContent = currentLojaId ? `🏪 Loja: ${currentLojaId}` : '⚠️ Loja não configurada';
-
                 if (!currentLojaId) {
-                    location.replace('telefone-github.html');
+                    document.getElementById('loading').innerHTML = `
+                        <div class="empty-icon">⚙️</div>
+                        <p>Configure o ID da loja na URL</p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary);">Ex: meus-pedidos-github.html?lojaid=MINHALOJA</p>
+                    `;
                     return;
                 }
 
-                await initFirebase();
+                document.getElementById('lojaInfo').textContent = `🏪 Loja: ${currentLojaId}`;
+
+                try {
+                    await initFirebase();
+                } catch (e) {
+                    document.getElementById('loading').innerHTML = `
+                        <div class="empty-icon">📡</div>
+                        <p>Erro ao conectar com servidor</p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary);">Tente novamente mais tarde</p>
+                    `;
+                    return;
+                }
 
                 cliente = getCliente();
 
@@ -214,6 +227,13 @@
                 subscribeToPedidos();
             } catch (error) {
                 console.error('[MEUS-PEDIDOS] Erro no init:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="empty-icon">😕</div>
+                    <p>Erro ao carregar</p>
+                    <button class="btn btn-primary" onclick="location.reload()" style="margin-top: var(--spacing-md);">
+                        Tentar novamente
+                    </button>
+                `;
             }
         }
 
@@ -234,10 +254,28 @@
 
                 renderizarPedidos();
                 document.getElementById('loading').style.display = 'none';
+
+                if (pedidos.length === 0) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('pedidosContainer').style.display = 'none';
+                    document.getElementById('semPedidos').style.display = 'block';
+                    document.getElementById('semPedidos').innerHTML = `
+                        <div class="empty-icon">📭</div>
+                        <p>Você ainda não fez nenhum pedido</p>
+                        <a href="pedido-github.html?lojaid=${currentLojaId}" class="btn btn-primary" style="margin-top: var(--spacing-md); text-decoration: none;">
+                            Fazer Primeiro Pedido
+                        </a>
+                    `;
+                }
             } catch (error) {
                 console.error('[MEUS-PEDIDOS] Erro ao carregar pedidos:', error);
-                document.getElementById('loading').style.display = 'none';
-                showToast('Erro ao carregar pedidos', 'error');
+                document.getElementById('loading').innerHTML = `
+                    <div class="empty-icon">📡</div>
+                    <p>Erro ao carregar pedidos</p>
+                    <button class="btn btn-primary" onclick="carregarPedidos()" style="margin-top: var(--spacing-md);">
+                        Tentar novamente
+                    </button>
+                `;
             }
         }
 

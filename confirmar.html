@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Confirmar Pedido</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { max-width: 480px; width: 100%; }
+        .card { background: white; border-radius: 20px; padding: 32px 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; }
+        .icon { font-size: 72px; margin-bottom: 16px; }
+        .title { font-size: 26px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+        .subtitle { font-size: 16px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+        .pedido-info { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: left; }
+        .pedido-id { font-size: 32px; font-weight: 700; color: #2563eb; text-align: center; margin-bottom: 16px; letter-spacing: 2px; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #666; font-size: 14px; }
+        .info-value { font-weight: 600; color: #1a1a1a; text-align: right; }
+        .btn { width: 100%; padding: 18px 24px; font-size: 18px; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s; margin-top: 12px; }
+        .btn-primary { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-secondary { background: #f3f4f6; color: #374151; }
+        .btn-secondary:hover { background: #e5e7eb; }
+        .status { padding: 16px; border-radius: 12px; margin-bottom: 24px; font-weight: 600; }
+        .status.pendente { background: #fef3c7; color: #92400e; }
+        .status.sucesso { background: #d1fae5; color: #065f46; }
+        .status.erro { background: #fee2e2; color: #991b1b; }
+        .status.expirado { background: #f3f4f6; color: #6b7280; }
+        .spinner { width: 48px; height: 48px; border: 4px solid #f3f4f6; border-top: 4px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+        .timer { font-size: 14px; color: #666; margin-top: 12px; }
+        .timer span { font-weight: 700; color: #dc2626; font-size: 18px; }
+        .loja-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card" id="cardCarregando">
+            <div class="spinner"></div>
+            <p>Carregando pedido...</p>
+        </div>
+
+        <div class="card hidden" id="cardErro">
+            <div class="icon">❌</div>
+            <h1 class="title">Ops! Erro</h1>
+            <p class="subtitle" id="mensagemErro">Não foi possível carregar o pedido</p>
+            <button class="btn btn-secondary" onclick="location.reload()">Tentar Novamente</button>
+        </div>
+
+        <div class="card hidden" id="cardExpirado">
+            <div class="icon">⏰</div>
+            <h1 class="title">Pedido Expirado</h1>
+            <p class="subtitle">Este pedido expirou por falta de confirmação no prazo de 15 minutos.</p>
+            <button class="btn btn-primary" id="btnNovoPedido">Fazer Novo Pedido</button>
+        </div>
+
+        <div class="card hidden" id="cardConfirmado">
+            <div class="icon">✅</div>
+            <h1 class="title">Pedido Confirmado!</h1>
+            <p class="subtitle">Seu pedido foi confirmado e está sendo preparado.</p>
+            <div class="pedido-info">
+                <div class="pedido-id" id="codigoConfirmado">#---</div>
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value" style="color: #059669;">✅ Confirmado</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card hidden" id="cardConfirmar">
+            <div class="loja-badge" id="lojaBadge">Loja</div>
+            <div class="icon">🍔</div>
+            <h1 class="title">Confirmar Pedido</h1>
+            <p class="subtitle">Revise as informações abaixo e confirme para realizar seu pedido.</p>
+
+            <div class="pedido-info">
+                <div class="pedido-id" id="codigoPedido">#---</div>
+                <div class="info-row">
+                    <span class="info-label">Cliente</span>
+                    <span class="info-value" id="nomeCliente">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Tipo</span>
+                    <span class="info-value" id="tipoPedido">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Total</span>
+                    <span class="info-value" id="totalPedido">R$ 0,00</span>
+                </div>
+                <div id="infoEndereco" class="info-row hidden">
+                    <span class="info-label">Endereço</span>
+                    <span class="info-value" id="enderecoPedido">-</span>
+                </div>
+                <div id="infoObs" class="info-row hidden">
+                    <span class="info-label">Observação</span>
+                    <span class="info-value" id="obsPedido">-</span>
+                </div>
+            </div>
+
+            <div class="status pendente" id="statusTimer">
+                ⏰ Confirme em <span id="tempoRestante">15:00</span> minutos
+            </div>
+
+            <button class="btn btn-primary" id="btnConfirmar" onclick="confirmarPedido()">✅ Confirmar Pedido</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        const BASE_URL = 'https://tocomfomeapp.github.io/tocomfome';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCh3E-Wu3OQZ8yZVxaRYdNNXVgmma4S8Jo",
+            authDomain: "tocomfome-bbad8.firebaseapp.com",
+            projectId: "tocomfome-bbad8",
+            storageBucket: "tocomfome-bbad8.firebasestorage.app",
+            messagingSenderId: "173195608514",
+            appId: "1:173195608514:web:cf806076d52317bc58d65b"
+        };
+
+        let app, db;
+        let lojaid = '';
+        let codigo = '';
+        let pedidoData = null;
+        let tempoRestante = 15 * 60;
+        let timerInterval = null;
+
+        function initFirebase() {
+            if (typeof firebase === 'undefined') {
+                console.error('Firebase SDK não carregado');
+                return;
+            }
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.apps[0];
+            }
+            db = firebase.firestore();
+        }
+
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            lojaid = params.get('lojaid') || '001';
+            codigo = params.get('codigo') || '';
+        }
+
+        async function carregarPedido() {
+            if (!codigo || !lojaid) {
+                mostrarErro('Código ou loja não informados');
+                return;
+            }
+
+            try {
+                const doc = await db.collection('pedidos').doc(codigo).get();
+
+                if (!doc.exists) {
+                    mostrarErro('Pedido não encontrado');
+                    return;
+                }
+
+                pedidoData = { id: doc.id, ...doc.data() };
+
+                if (pedidoData.loja_id !== lojaid) {
+                    mostrarErro('Loja incorreta');
+                    return;
+                }
+
+                if (['preparando', 'pronto', 'saiu_entrega', 'entregue', 'confirmado'].includes(pedidoData.status)) {
+                    mostrarConfirmado();
+                    return;
+                }
+
+                if (pedidoData.status !== 'novo') {
+                    mostrarExpirado();
+                    return;
+                }
+
+                const criadoEm = new Date(pedidoData.criado_em);
+                const agora = new Date();
+                const diffMs = 15 * 60 * 1000 - (agora - criadoEm);
+
+                if (diffMs <= 0) {
+                    mostrarExpirado();
+                    return;
+                }
+
+                tempoRestante = Math.floor(diffMs / 1000);
+                iniciarTimer();
+                mostrarConfirmar();
+
+            } catch (error) {
+                console.error('Erro ao carregar:', error);
+                mostrarErro('Erro ao carregar pedido');
+            }
+        }
+
+        function iniciarTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            
+            const timerEl = document.getElementById('tempoRestante');
+            const statusEl = document.getElementById('statusTimer');
+            
+            timerInterval = setInterval(() => {
+                tempoRestante--;
+
+                const minutos = Math.floor(tempoRestante / 60);
+                const segundos = tempoRestante % 60;
+                timerEl.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+
+                if (tempoRestante <= 0) {
+                    clearInterval(timerInterval);
+                    window.location.reload();
+                }
+            }, 1000);
+        }
+
+        function mostrarConfirmar() {
+            document.getElementById('cardCarregando').classList.add('hidden');
+            document.getElementById('cardConfirmar').classList.remove('hidden');
+
+            document.getElementById('lojaBadge').textContent = `Loja ${lojaid}`;
+            document.getElementById('codigoPedido').textContent = `#${codigo}`;
+            document.getElementById('nomeCliente').textContent = pedidoData.cliente_nome || 'Cliente';
+            document.getElementById('tipoPedido').textContent = getTipoLabel(pedidoData.tipo);
+            document.getElementById('totalPedido').textContent = formatarMoeda(pedidoData.total);
+
+            if (pedidoData.cliente_endereco) {
+                document.getElementById('infoEndereco').classList.remove('hidden');
+                document.getElementById('enderecoPedido').textContent = pedidoData.cliente_endereco;
+            }
+
+            if (pedidoData.observacao) {
+                document.getElementById('infoObs').classList.remove('hidden');
+                document.getElementById('obsPedido').textContent = pedidoData.observacao;
+            }
+        }
+
+        async function confirmarPedido() {
+            const btn = document.getElementById('btnConfirmar');
+            btn.disabled = true;
+            btn.textContent = 'Confirmando...';
+
+            try {
+                await db.collection('pedidos').doc(codigo).update({
+                    status: 'preparando',
+                    confirmado_em: new Date().toISOString(),
+                    atualizado_em: new Date().toISOString()
+                });
+
+                if (timerInterval) clearInterval(timerInterval);
+                mostrarConfirmado();
+
+            } catch (error) {
+                console.error('Erro ao confirmar:', error);
+                btn.disabled = false;
+                btn.textContent = '✅ Confirmar Pedido';
+                alert('Erro ao confirmar. Tente novamente.');
+            }
+        }
+
+        function mostrarConfirmado() {
+            document.getElementById('cardCarregando').classList.add('hidden');
+            document.getElementById('cardConfirmar').classList.add('hidden');
+            document.getElementById('cardExpirado').classList.add('hidden');
+            document.getElementById('cardErro').classList.add('hidden');
+            document.getElementById('cardConfirmado').classList.remove('hidden');
+            document.getElementById('codigoConfirmado').textContent = `#${codigo}`;
+        }
+
+        function mostrarExpirado() {
+            document.getElementById('cardCarregando').classList.add('hidden');
+            document.getElementById('cardConfirmar').classList.add('hidden');
+            document.getElementById('cardConfirmado').classList.add('hidden');
+            document.getElementById('cardErro').classList.add('hidden');
+            document.getElementById('cardExpirado').classList.remove('hidden');
+            
+            document.getElementById('btnNovoPedido').onclick = function() {
+                window.location.href = `${BASE_URL}/?lojaid=${lojaid}`;
+            };
+        }
+
+        function mostrarErro(mensagem) {
+            document.getElementById('cardCarregando').classList.add('hidden');
+            document.getElementById('cardConfirmar').classList.add('hidden');
+            document.getElementById('cardExpirado').classList.add('hidden');
+            document.getElementById('cardConfirmado').classList.add('hidden');
+            document.getElementById('cardErro').classList.remove('hidden');
+            document.getElementById('mensagemErro').textContent = mensagem;
+        }
+
+        function getTipoLabel(tipo) {
+            const labels = { 
+                'mesa': 'Mesa', 
+                'balcao': 'Balcão', 
+                'entrega': 'Delivery', 
+                'retirada': 'Retirada' 
+            };
+            return labels[tipo] || tipo;
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+        }
+
+        window.onload = function() {
+            getUrlParams();
+            initFirebase();
+            
+            setTimeout(() => {
+                carregarPedido();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

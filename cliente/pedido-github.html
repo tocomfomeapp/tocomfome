@@ -171,10 +171,24 @@
 
             if (!currentLojaId) {
                 showToast('Adicione ?lojaid=ID na URL', 'error');
+                document.getElementById('loading').innerHTML = `
+                    <div class="empty-icon">⚙️</div>
+                    <p>Configure o ID da loja na URL</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">Ex: pedido-github.html?lojaid=MINHALOJA</p>
+                `;
                 return;
             }
 
-            await initFirebase();
+            try {
+                await initFirebase();
+            } catch (e) {
+                document.getElementById('loading').innerHTML = `
+                    <div class="empty-icon">📡</div>
+                    <p>Erro ao conectar com servidor</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">Tente novamente mais tarde</p>
+                `;
+                return;
+            }
 
             cliente = getCliente();
             if (!cliente) {
@@ -204,15 +218,27 @@
 
         async function carregarProdutos() {
             try {
+                document.getElementById('loading').innerHTML = `
+                    <div class="spinner"></div>
+                    <p>Carregando produtos...</p>
+                `;
+
                 const snapshot = await db.collection('produtos')
                     .where('loja_id', '==', currentLojaId)
-                    .where('ativo', '==', 1)
+                    .where('ativo', '==', true)
                     .get();
 
                 produtos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 if (produtos.length === 0) {
+                    document.getElementById('loading').style.display = 'none';
                     document.getElementById('semProdutos').style.display = 'block';
+                    document.getElementById('semProdutos').innerHTML = `
+                        <div class="empty-icon">🏪</div>
+                        <h3>Ainda sem produtos</h3>
+                        <p>Esta loja ainda não cadastrou produtos.</p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary);">Volte mais tarde!</p>
+                    `;
                     return;
                 }
 
@@ -233,7 +259,13 @@
                 atualizarQuantidades();
             } catch (error) {
                 console.error('Erro ao carregar produtos:', error);
-                showToast('Erro ao carregar produtos', 'error');
+                document.getElementById('loading').innerHTML = `
+                    <div class="empty-icon">📡</div>
+                    <p>Erro ao carregar produtos</p>
+                    <button class="btn btn-primary" onclick="carregarProdutos()" style="margin-top: var(--spacing-md);">
+                        Tentar novamente
+                    </button>
+                `;
             }
         }
 
