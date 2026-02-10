@@ -148,37 +148,64 @@
 
         function getUrlParams() {
             const params = new URLSearchParams(window.location.search);
-            lojaid = params.get('lojaid') || '001';
+            lojaid = params.get('lojaid') || params.get('loja_id') || '001';
             codigo = params.get('codigo') || '';
+            console.log('[DEBUG] getUrlParams - lojaid:', lojaid, 'codigo:', codigo);
         }
 
         async function carregarPedido() {
+            console.log('[DEBUG] ===== INICIANDO carregaPedido =====');
+            console.log('[DEBUG] lojaid:', lojaid, '| codigo:', codigo);
+            
             if (!codigo || !lojaid) {
+                console.log('[DEBUG] ERRO: Faltando codigo ou lojaid');
                 mostrarErro('Código ou loja não informados');
                 return;
             }
 
             try {
+                console.log('[DEBUG] Buscando documento no Firebase:', codigo);
                 const doc = await db.collection('pedidos').doc(codigo).get();
+                console.log('[DEBUG] Documento encontrado:', doc.exists);
 
                 if (!doc.exists) {
+                    console.log('[DEBUG] ERRO: Pedido não encontrado no Firebase');
                     mostrarErro('Pedido não encontrado');
                     return;
                 }
 
                 pedidoData = { id: doc.id, ...doc.data() };
+                console.log('[DEBUG] Dados completos do pedido:');
+                console.log('[DEBUG]   - id:', pedidoData.id);
+                console.log('[DEBUG]   - status:', pedidoData.status);
+                console.log('[DEBUG]   - loja_id:', pedidoData.loja_id);
+                console.log('[DEBUG]   - lojaid:', pedidoData.lojaid);
+                console.log('[DEBUG]   - criado_em:', pedidoData.criado_em);
+                
+                // Verificar ambos os campos de loja
+                const lojaNoFirebase = pedidoData.loja_id || pedidoData.lojaid;
+                console.log('[DEBUG] Loja no Firebase (loja_id ou lojaid):', lojaNoFirebase);
+                console.log('[DEBUG] Loja na URL:', lojaid);
+                console.log('[DEBUG] Comparação:', lojaNoFirebase, '===', lojaid, '→', lojaNoFirebase === lojaid);
 
-                if (pedidoData.loja_id !== lojaid) {
+                if (lojaNoFirebase !== lojaid) {
+                    console.log('[DEBUG] ERRO: Loja incorreta!');
+                    console.log('[DEBUG] Possível causa: Firebase tem "lojaid" mas URL tem "lojaid"');
                     mostrarErro('Loja incorreta');
                     return;
                 }
 
+                console.log('[DEBUG] Loja verificada com sucesso!');
+                console.log('[DEBUG] Status atual do pedido:', pedidoData.status);
+
                 if (['preparando', 'pronto', 'saiu_entrega', 'entregue', 'confirmado'].includes(pedidoData.status)) {
+                    console.log('[DEBUG] Pedido já confirmado anteriormente, mostrando confirmação');
                     mostrarConfirmado();
                     return;
                 }
 
                 if (pedidoData.status !== 'novo') {
+                    console.log('[DEBUG] Status diferente de "novo", mostrando expirado');
                     mostrarExpirado();
                     return;
                 }
@@ -188,17 +215,19 @@
                 const diffMs = 15 * 60 * 1000 - (agora - criadoEm);
 
                 if (diffMs <= 0) {
+                    console.log('[DEBUG] Pedido expirado (diffMs <= 0)');
                     mostrarExpirado();
                     return;
                 }
 
                 tempoRestante = Math.floor(diffMs / 1000);
+                console.log('[DEBUG] Tempo restante:', tempoRestante, 'segundos');
                 iniciarTimer();
                 mostrarConfirmar();
 
             } catch (error) {
-                console.error('Erro ao carregar:', error);
-                mostrarErro('Erro ao carregar pedido');
+                console.error('[DEBUG] ERRO ao carregar pedido:', error);
+                mostrarErro('Erro ao carregar pedido: ' + error.message);
             }
         }
 
@@ -247,19 +276,23 @@
             const btn = document.getElementById('btnConfirmar');
             btn.disabled = true;
             btn.textContent = 'Confirmando...';
+            
+            console.log('[DEBUG] confirmandoPedido - codigo:', codigo);
 
             try {
+                console.log('[DEBUG] Atualizando status no Firebase para: preparando');
                 await db.collection('pedidos').doc(codigo).update({
                     status: 'preparando',
                     confirmado_em: new Date().toISOString(),
                     atualizado_em: new Date().toISOString()
                 });
+                console.log('[DEBUG] Pedido atualizado no Firebase com sucesso');
 
                 if (timerInterval) clearInterval(timerInterval);
                 mostrarConfirmado();
 
             } catch (error) {
-                console.error('Erro ao confirmar:', error);
+                console.error('[DEBUG] Erro ao confirmar:', error);
                 btn.disabled = false;
                 btn.textContent = '✅ Confirmar Pedido';
                 alert('Erro ao confirmar. Tente novamente.');
