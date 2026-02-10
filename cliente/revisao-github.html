@@ -281,13 +281,13 @@
                     observacao: '',
                     taxa_entrega: 0,
                     codigo_rastreio: codigoRastreio,
-                    loja_id: currentLojaId,
+                    lojaid: currentLojaId,
                     forma_pagamento: formaPagamento,
-                    criado_em: new Date().toISOString()
+                    criado_em: new Date().toISOString(),
+                    atualizado_em: new Date().toISOString()
                 };
 
-                const pedidoRef = await db.collection('pedidos').add(pedidoData);
-                const pedidoId = pedidoRef.id;
+                const pedidoRef = await db.collection('pedidos').doc(codigoRastreio).set(pedidoData);
 
                 const itensBatch = db.batch();
                 for (const item of carrinho) {

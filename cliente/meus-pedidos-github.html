@@ -244,7 +244,7 @@
                 const telefone = limparTelefone(cliente.telefone);
 
                 const snapshot = await db.collection('pedidos')
-                    .where('loja_id', '==', currentLojaId)
+                    .where('lojaid', '==', currentLojaId)
                     .where('cliente_telefone', '==', telefone)
                     .orderBy('criado_em', 'desc')
                     .limit(50)
@@ -290,7 +290,7 @@
             const telefone = limparTelefone(cliente.telefone);
 
             unsubscribe = db.collection('pedidos')
-                .where('loja_id', '==', currentLojaId)
+                .where('lojaid', '==', currentLojaId)
                 .where('cliente_telefone', '==', telefone)
                 .orderBy('criado_em', 'desc')
                 .onSnapshot(snapshot => {
